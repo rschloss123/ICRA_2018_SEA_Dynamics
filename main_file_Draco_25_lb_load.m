@@ -8,19 +8,18 @@
 clear all;
 close all;
 
-global m_M b_M k_M Km_M m_S b_S work k_L b_L Km_L...
-    J1 J2 m_1 m_2 L_1 L_2 L_c1 L_c2 time_step k_S
-
+global  Km_M L_1 L_2 time_step k_S
 
 % There are different options to run this program:
-% 1) Input = 1: Solve the optimization 
+% 1) Input = 1: Solve the optimization problem
 % 1A) utilize_compliance = 1: Solve the problem while considering the actuator
 % subsystems' dynamics
-%   i. Euler_method = 0: 
+%   i. Euler_method = 0: Use z_double_dot that is calculated using equation
+%   (12) in paper 
 %   ii. Euler_method = 1: Use Euler's method to linearize problem in the convex
 %   optimization sub-problem
-% 1B) utilize_compliance = 0: Solve the problem without considering the
-% actuator subsystem's dynamics
+% 1B) utilize_compliance = 0: Solve the optimization problem without considering the
+% actuator subsystem's dynamics (rigid case)
 % 2) Input = 0: Analyze the zero input behavior of the system
 
 
@@ -35,17 +34,18 @@ utilize_compliance =1;
 % 0 = false
 Euler_method = 0;
 
-% Set input to 0 to analyze zero input behavior
-% For input = 0, utilize_compliance should = 1 and Euler_method should = 0
-% Set input to 1 to run convex optimization program
+% Set input to 0 to analyze zero input behavior.
+% For input = 0, utilize_compliance should = 1 and Euler_method should = 0.
+% Set input to 1 to run convex optimization program.
 input = 1;
 
-% 1 = true, compare compliant to rigid behavior
+% 1 = true, compare compliant to rigid behavior.
 % This sets the cost function such that the penalty is equal to 1e-3 in the
-% cost function
+% cost function.
 compare_compliant_to_rigid = 0;
 
-% 1 = true, analyze convergence rate 
+% 1 = true, analyze convergence rate. This accomplished by evaluating error when 
+% comparing to the trajectory produced at the 15th iteration. 
 % In this configuration, set:
 % utilize_compliance = 1
 % Euler_method = 0
@@ -56,15 +56,15 @@ if analyze_convergence == 1
     load(filename)    
 end 
 
-% Mass of M_L+M_P
-%mass = [100:100:1500];
-mass = [1110];
+% Mass of M_L+M_P. This can be an array or a single value.
+%mass = [100:100:1500]; 
+mass = 1110;
 
-% Scales for spring constant
+% Scales for spring constant. This can be an array or a single value.
 %spring_scale = [1/3, 2/3, 1 4/3, 5.5/3, 6/3, 7/3, 8/3, 9/3, 10/3];
 spring_scale = 1;
 
-% Penalization in cost function
+% Penalization in cost function. This can be an array or a single value.
 %penalty_array = [1e-9 1e-8 1e-7 1e-6 1e-5 1e-4 1e-3 1e-2 1e-1 1];
 penalty_array = [1e-9];
 
@@ -72,11 +72,12 @@ penalty_array = [1e-9];
 % z trajectory (rigid behavior)
 save_z_data = 0;
 % upward velocity (rigid or compliant)
-save_y_velocity_data = 1; 
-% save x trajectory (compliant behaivor)
+save_y_velocity_data = 0; 
+% save x trajectory (compliant behavior)
 save_x_data = 0;
 
-% use rigid trajectory as nominal trajectory for compliant case
+% Use rigid trajectory as nominal trajectory for compliant case when
+% use_rigid_nominal = 1.
 use_rigid_nominal = 0;
 if use_rigid_nominal == 1
     % load reference data
@@ -85,13 +86,16 @@ if use_rigid_nominal == 1
 end 
 
 %% Eigenvalues
+% For analysis of eigenvalues for differing M_L+M_p
 period_a_lin =zeros(1,length(mass));
 period_a_1= zeros(1,length(mass));
-optimal = zeros(1,length(mass));
+optimal = zeros(1,length(mass)); 
 frequency_a_lin = zeros(1,length(mass));
 frequency_a_1 = zeros(1,length(mass));
 period_continuous = zeros(1,length(mass));
 frequency_continuous = zeros(1,length(mass));
+
+% Used to analyze behavior for varying spring constants.
 if length(spring_scale) > 1
     k_values = zeros(1,length(spring_scale));
 end 
@@ -132,8 +136,8 @@ for r = 1: end_test
         N = 50;
         time_step = .006;
     elseif utilize_compliance == 1 && input == 0
-        N = 5000; %5800;%5000;
-        time_step = .0001;
+        N = 54; %5800;%5000;
+        time_step = .0095; %.0001;
     else
         N = 50;
         time_step = .0095;
@@ -179,6 +183,7 @@ for r = 1: end_test
     %% Continuous Time System
 
     [~,~,~,A_1,B_1] = get_continuous_matrices(m_L1,m_L2);
+    % Eigenvalues of A_1
     eigenvalues = eig( A_1 );
     max_eig_a1 = max(abs(eigenvalues));
 
@@ -189,6 +194,7 @@ for r = 1: end_test
         A_1_no_compliance = [0 1 0 0; 0 0 0 0; 0 0 0 1; 0 0 0 0];
         B_1_no_compliance = [0 0; 1 0; 0 0; 0 1];
         [A_no_compliance,B_no_compliance] = get_discrete_matrices(A_1_no_compliance,B_1_no_compliance,0);
+        % Eigenvalues of rigid system 
         eigenvalues_no_compliance_a1 = eig( A_1_no_compliance );
         max_eig_a1_no_compliance = max(abs(eigenvalues_no_compliance_a1));
         eigenvalues_no_compliance_a = eig( A_no_compliance );
@@ -220,38 +226,22 @@ for r = 1: end_test
 
     %% System Parameters                                        
 
-    % center of mass position in y direction 
-    my = 0.0; % meters
-
-    % locations of end of link 1
-    get_l1 = @(theta) [cos(theta)*L_1; sin(theta)*L_1];
-    % locations of end of link 2
-    get_l2 = @(theta1,theta2) [cos(theta1)*L_1+cos(theta1+theta2)*L_2; sin(theta1)*L_1+sin(theta1+theta2)*L_2];
-    % COM locations
-    get_mass1 = @(theta) [cos(theta)*L_c1; sin(theta)*L_c1];
-    get_mass2 = @(theta1,theta2) [cos(theta1)*L_1+cos(theta1+theta2)*L_c2; sin(theta1)*L_1+sin(theta1+theta2)*L_c2];
-    % actuator length 
+   % actuator length 
     get_x1 = @(theta) (457/10000 - (21*cos(theta - atan(1/2)))/1250)^(1/2);
     get_x2 = @(theta) (213/5000 - (cos(pi/2 + asin(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))))*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))/50 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2);
-    % moment arm (Jacobian) 
-    get_r1 = @(theta) (21*sin(theta - atan(1/2)))/(2500*(457/10000 - (21*cos(theta - atan(1/2)))/1250)^(1/2));
-    get_r2 = @(theta) ((sin(pi/2 + asin(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))))*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2)*((sin(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))*cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))*(((9*sin(theta)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2))/(250000*(9/5000 - (9*cos(theta))/5000)^(3/2)) - (225*sin(theta)*((9*cos(theta))/5000 + 7/5000))/(32*(9/5000 - (9*cos(theta))/5000)^(1/2)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)))/(1 - ((390625*((9*cos(theta))/5000 + 7/5000)^2)/4 - 1)/((9*cos(theta))/8 - 9/8))^(1/2) - ((3*cos(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2)) - (27*sin(theta)^2)/(1000000*(9/5000 - (9*cos(theta))/5000)^(3/2)))/((9*sin(theta)^2)/(18*cos(theta) - 18) + 1)^(1/2)))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2)*(1 - cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))^2)^(1/2)) - (sin(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))*sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))^2*(((9*sin(theta)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2))/(250000*(9/5000 - (9*cos(theta))/5000)^(3/2)) - (225*sin(theta)*((9*cos(theta))/5000 + 7/5000))/(32*(9/5000 - (9*cos(theta))/5000)^(1/2)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)))/(1 - ((390625*((9*cos(theta))/5000 + 7/5000)^2)/4 - 1)/((9*cos(theta))/8 - 9/8))^(1/2) - ((3*cos(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2)) - (27*sin(theta)^2)/(1000000*(9/5000 - (9*cos(theta))/5000)^(3/2)))/((9*sin(theta)^2)/(18*cos(theta) - 18) + 1)^(1/2)))/(2000*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(3/2)*(1 - cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))^2)^(1/2))))/(50*(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))^2/(8*cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2)))))) - 17) + 1)^(1/2)) + (sin(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))*sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))*(((9*sin(theta)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2))/(250000*(9/5000 - (9*cos(theta))/5000)^(3/2)) - (225*sin(theta)*((9*cos(theta))/5000 + 7/5000))/(32*(9/5000 - (9*cos(theta))/5000)^(1/2)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)))/(1 - ((390625*((9*cos(theta))/5000 + 7/5000)^2)/4 - 1)/((9*cos(theta))/8 - 9/8))^(1/2) - ((3*cos(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2)) - (27*sin(theta)^2)/(1000000*(9/5000 - (9*cos(theta))/5000)^(3/2)))/((9*sin(theta)^2)/(18*cos(theta) - 18) + 1)^(1/2)))/(50*(1 - cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))^2)^(1/2)) - (cos(pi/2 + asin(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))))*sin(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))*sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))*(((9*sin(theta)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2))/(250000*(9/5000 - (9*cos(theta))/5000)^(3/2)) - (225*sin(theta)*((9*cos(theta))/5000 + 7/5000))/(32*(9/5000 - (9*cos(theta))/5000)^(1/2)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)))/(1 - ((390625*((9*cos(theta))/5000 + 7/5000)^2)/4 - 1)/((9*cos(theta))/8 - 9/8))^(1/2) - ((3*cos(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2)) - (27*sin(theta)^2)/(1000000*(9/5000 - (9*cos(theta))/5000)^(3/2)))/((9*sin(theta)^2)/(18*cos(theta) - 18) + 1)^(1/2)))/(5000*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2)*(1 - cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))^2)^(1/2)))/(2*(213/5000 - (cos(pi/2 + asin(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))))*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))/50 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2));
-    % Actuator Location, for graphing
-    get_A1 = @(theta,delta) [cos(theta)*(L_c1+delta); sin(theta)*(L_c1+delta)];
-    get_A2 = @(theta1,theta2,delta) [cos(theta1)*L_1+cos(theta1+theta2)*(L_c2-delta); sin(theta1)*L_1+sin(theta1+theta2)*(L_c2-delta)];
 
-    % actuator length limits, based on geometric limits
-    limit1_lower = .171045; % theta = .67
-    limit1_upper = .246427; % theta = pi
-    limit2_lower = .15098814; % theta = pi
-    limit2_upper = .24357; % theta = .01
+    % actuator length limits (m), based on geometric limits
+    limit1_lower = .171045; % theta1 = .67
+    limit1_upper = .246427; % theta1 = pi
+    limit2_lower = .15098814; % theta2 = pi
+    limit2_upper = .24357; % theta2 = .01
 
 
     %% Simulation Parameters
 
     % optimal value array, in order to evaluate convergence with tolerance
     % \epsilon
-    opt_val = zeros(iters,1);
+    opt_val_check_convergence = zeros(iters,1);
 
     % states for all time
     x = zeros(N,8);
@@ -276,6 +266,7 @@ for r = 1: end_test
     bias_lin = zeros(8,1,N);
 
     if Euler_method == 1
+        % Matrices to use Euler Method
         A_prime = zeros(8,8,N);
         B_prime = zeros(8,2,N);
         bias_prime = zeros(8,1,N);
@@ -311,52 +302,55 @@ for r = 1: end_test
     if input == 1
         % Nominal trajectory at equilibrium with springs 
         if use_rigid_nominal == 0
-        x1_est = x(1,1)+x(1,3); % link 1 displacement
-        dx1_est = x(1,2)+x(1,4); % link 1 velocity 
-        x2_est = x(1,5)+x(1,7); % link 1 displacement
-        dx2_est = x(1,6)+x(1,8); % link 1 velocity          
-        % Note that theta2_unshift is with respect to link 1. The angle of link 2
-        % with respect to the horizontal axis is theta1+theta2
+            x1_est = x(1,1)+x(1,3); % link 1 displacement
+            dx1_est = x(1,2)+x(1,4); % link 1 velocity 
+            x2_est = x(1,5)+x(1,7); % link 1 displacement
+            dx2_est = x(1,6)+x(1,8); % link 1 velocity          
+            % Note that theta2_unshift is with respect to link 1. The angle of link 2
+            % with respect to the horizontal axis is theta1+theta2
 
-        theta1 = get_theta1(x1_est);
-        theta2_unshift = get_theta_2(x2_est);
-        theta2_shift= theta2_unshift+pi;
+            theta1 = get_theta1(x1_est);
+            theta2_unshift = get_theta_2(x2_est);
+            theta2_shift= theta2_unshift+pi;
 
-        r1 = get_r1(theta1);
-        r2 = get_r2(theta2_unshift);        
-        theta_dot1 = dx1_est/r1;
-        theta_dot2 = dx2_est/r2;
-        
-        % Lagrangian Dynamic
-        [H11, H22, H12, H21, h, G1, G2] = get_dynamic_components(theta1,theta2_shift);
+            [r1, r2] = getr(theta1,theta2_unshift);
+            %r1 = get_r1(theta1);
+            %r2 = get_r2(theta2_unshift);        
+            theta_dot1 = dx1_est/r1;
+            theta_dot2 = dx2_est/r2;
 
-        [F_x_components, F_u_components, F_b_components] = ...
-            get_F_components(H11, H22, H12, H21, h, G1, G2,...
-            theta1, theta2_unshift, r1, r2, theta_dot1, theta_dot2,...
-            A_1, B1_1, B1_2, B1_3, B1_4, s1v, s2v,m_L1,m_L2);
+            % Lagrangian Dynamic
+            [H11, H22, H12, H21, h, G1, G2] = get_dynamic_components(theta1,theta2_shift);
 
-        [A_lin1(:,:),B_lin1(:,:),bias_lin1(:,:)] = linearize(A,B_12,B_34,F_x_components,...
-            F_u_components,F_b_components);
+            % Compute F' 
+            [F_x_components, F_u_components, F_b_components] = ...
+                get_F_components(H11, H22, H12, H21, h, G1, G2,...
+                theta1, theta2_unshift, r1, r2, theta_dot1, theta_dot2,...
+                A_1, B1_1, B1_2, B1_3, B1_4, s1v, s2v,m_L1,m_L2);
 
-        S = [(eye(8)-A_lin1), -B_lin1; 1 0 1 0 0 0 0 0 0 0; 0 0 0 0 1 0 1 0 0 0];
-        z_init = [bias_lin1; get_x1(theta_init1); get_x2(theta_unshift_init2)];
-        x_int = S\z_init;
-        x0 = x_int(1:8,1)';
-        u0 = x_int(9:10,1)';
+            % Discretized time-varying update equation
+            [A_lin1(:,:),B_lin1(:,:),bias_lin1(:,:)] = linearize_matrices(A,B_12,B_34,F_x_components,...
+                F_u_components,F_b_components);
 
-        % configure x_baseline or z_baseline from nominal trajectory
-        if utilize_compliance == 1 
-            x(:,:)= ones(N,1)*x0;
-            x_baseline = x;
-        else
-           z1 = x0(1)+x0(3);
-           z1_dot = x0(2)+x0(4);
-           z2 = x0(5)+x0(7);
-           z2_dot = x0(6)+x0(8); 
-           z0 = [z1 z1_dot z2 z2_dot];
-           z(:,:)= ones(N,1)*z0;
-           z_baseline = z;
-        end
+            S = [(eye(8)-A_lin1), -B_lin1; 1 0 1 0 0 0 0 0 0 0; 0 0 0 0 1 0 1 0 0 0];
+            z_init = [bias_lin1; get_x1(theta_init1); get_x2(theta_unshift_init2)];
+            x_int = S\z_init;
+            x0 = x_int(1:8,1)';
+            u0 = x_int(9:10,1)';
+
+            % configure x_baseline or z_baseline from nominal trajectory
+            if utilize_compliance == 1 
+                x(:,:)= ones(N,1)*x0;
+                x_baseline = x;
+            else
+               z1 = x0(1)+x0(3);
+               z1_dot = x0(2)+x0(4);
+               z2 = x0(5)+x0(7);
+               z2_dot = x0(6)+x0(8); 
+               z0 = [z1 z1_dot z2 z2_dot];
+               z(:,:)= ones(N,1)*z0;
+               z_baseline = z;
+            end
 
         % use the optimal trajectory for the rigid system as the nominal
         % trajectory for the compliant system
@@ -373,25 +367,31 @@ for r = 1: end_test
         x2_final = get_x2(theta_unshift_init2);   
         theta_2_unshift_final = get_theta_2(x2_final);
         % Change in joint angle with respect to actuator length for ankle
-        Tdot1_final = get_ankle_jacobian(x1_final);
+        [Tdot1_final, ~] = get_ankle_jacobian(x1_final);
         % Change in joint angle with respect to actuator length for knee
         [Tdot2_final, ~] = solve_knee_jacobians2(theta_2_unshift_final);
     end 
     %% Check: Initial Forces
     if input == 1
+        % Forces on foot (bolted to ground)
         wrench_nominal = zeros(3,N-1);
         checkY = zeros(N-1,1);
         checkT = zeros(N-1,1);
         for j = 1:N-1
                     ddx1_est(j) = (x(j+1,2)+x(j+1,4)-x(j,2)-x(j,4))/time_step;
                     ddx2_est(j) = (x(j+1,6)+x(j+1,8)-x(j,6)-x(j,8))/time_step;
-                    [wrench_nominal(:,j),~,checkY(j),checkT(j)] = ContraintComponents(x(j:j+1,:),ddx1_est(j),ddx2_est(j),A_lin(:,:,j),bias_lin(:,:,j));;
+                    [wrench_nominal(:,j),~,checkY(j),checkT(j)] = ContraintComponents(x(j:j+1,:),ddx1_est(j),ddx2_est(j),A_lin(:,:,j),bias_lin(:,:,j));
         end
     end 
     %% Iterative Simulation
+    % Used for reaction forces on foot
     Constraint_Jacobian = zeros(3,2,N-1);
+    
+    % Graphing H11 and H22 for evaluation 
     H11_graph = zeros(N,1);
     H22_graph = zeros(N,1);
+    
+    % Maximum eigenvalue of linearized system 
     max_eig = 0; 
     if input == 0
         % no input for zero-input evaluation
@@ -424,20 +424,17 @@ for r = 1: end_test
             theta2_shift(j)= theta2_unshift(j)+pi;
 
             % moment arm
-            r1(j) = get_r1(theta1(j));
-            r2(j) = get_r2(theta2_unshift(j));  
+            [r1(j), r2(j)] = getr(theta1(j),theta2_unshift(j));
             % angular velocity
             theta_dot1(j) = dx1_est/r1(j);
             theta_dot2(j) = dx2_est/r2(j);
     
             % Lagrangian dynamics 
             [H11, H22, H12, H21, h, G1, G2] = get_dynamic_components(theta1(j),theta2_shift(j));
+            
+            % Graph lagrangian dynamic components for evaluation
             H11_graph(j) = H11/r1(j)^2;
             H22_graph(j) = H22/(r2(j)^2);
-
-            if j == 30
-                stop = 0;
-            end
 
             if utilize_compliance == 1
                 % Compute F' for compliant case
@@ -450,7 +447,7 @@ for r = 1: end_test
                 % Create linear approximation of system, using discrete A
                 % and B
                 [A_lin(:,:,j),B_lin(:,:,j),bias_lin(:,:,j)] = ...
-                    linearize(A,B_12,B_34,F_x_components,F_u_components,F_b_components);
+                    linearize_matrices(A,B_12,B_34,F_x_components,F_u_components,F_b_components);
             elseif utilize_compliance == 1 && Euler_method == 1
                 % Utilize Euler method
 
@@ -458,12 +455,12 @@ for r = 1: end_test
                 % the A_1 and B_1 matrix as opposed to the A and B discrete
                 % matrices 
                 [A_prime(:,:,j),B_prime(:,:,j),bias_prime(:,:,j)] = ...
-                    linearize(A_1,B1_12,B1_34,F_x_components,F_u_components,F_b_components);        
+                    linearize_matrices(A_1,B1_12,B1_34,F_x_components,F_u_components,F_b_components);        
                 A_lin(:,:,j) = eye(8,8)+time_step*A_prime(:,:,j) ;
                 B_lin(:,:,j) = time_step*B_prime(:,:,j);
                 bias_lin(:,:,j) = time_step*bias_prime(:,:,j);  
             else
-                % no actuator dynamics considered
+                % no actuator dynamics considered (rigid system)
                 [Linv_M_Linv(:,:,j), F_b_components_no_compliance(:,:,j)] = ...
                     get_F_components_no_compliance(H11, H22, H12, H21, h, G1, G2,...
                     theta1(j), theta2_unshift(j), r1(j), r2(j), theta_dot1(j), theta_dot2(j));
@@ -477,7 +474,7 @@ for r = 1: end_test
             end 
         end 
 
-        % Obtain maximum eigenvalue
+        % Obtain maximum eigenvalue of linearized system 
         for eig_check = 1:N
             eigenvalues = eig( A_lin(:,:,eig_check) );
             eigenvalues = log(eigenvalues); % take the log because A_lin is discrete 
@@ -489,20 +486,21 @@ for r = 1: end_test
 
         if input == 1
         % do convex optimization
+         % Maximimize upward velocity at hip at final time 
             cvx_begin
         %    cvx_precision best
             if length(penalty_array) > 1
                 % for penalty test, the default solver is SDPT3
-                if penalty == 1e-2 % in the penalty test, the solver is sensitive at penalty = 1e-2
+                if penalty == 1e-2 % in the penalty test, the solver is sensitive at penalty = 1e-2, so sedumi is used 
                     cvx_solver sedumi  
                 end                          
             elseif length(penalty_array) == 1
                 cvx_solver sedumi        
             end 
 
-            if utilize_compliance == 1 
+            if utilize_compliance == 1 % compliant
                 variable x(N,8)
-            else
+            else % rigid 
                 variable z(N,4)
                 variable z_double_dot(N-1,2)
             end
@@ -511,10 +509,10 @@ for r = 1: end_test
             variable extracost
             variable F(2,N-1)
             variable xdd(2,N-1)
-          %  function below varifies no motion
+          %  function below verifies no motion
            %minimize 0.00001*sum( abs(x(:,1)+x(:,3)-x_baseline(:,1)-x_baseline(:,3) ))+0.00001*sum( abs(x(:,5)+x(:,7)-x_baseline(:,5)-x_baseline(:,7) ))
-        %    minimize -(L_1*cos(theta_init1)*Tdot1_final*(x(N,2)+x(N,4))+L_2*cos(theta_init1+theta_init2+pi)*Tdot1_final*(x(N,2)+x(N,4))+L_2*cos(theta_init1+theta_init2+pi)*Tdot2_final*(x(N,6)+x(N,8)))+0.00001*sum( abs(x(:,1)+x(:,3)-x_baseline(:,1)-x_baseline(:,3) ))+0.00001*sum( abs(x(:,5)+x(:,7)-x_baseline(:,5)-x_baseline(:,7) ));%+(1e-8)*norm(c_constraint, 1)
-            if utilize_compliance == 1 
+           if utilize_compliance == 1 
+                % Compliant case
                 if compare_compliant_to_rigid == 1
                     minimize -(L_1*cos(theta_init1)*Tdot1_final*(x(N,2)+x(N,4))+...
                      L_2*cos(theta_init1+theta_unshift_init2+pi)*Tdot1_final*(x(N,2)+x(N,4))...
@@ -526,13 +524,14 @@ for r = 1: end_test
                      +L_2*cos(theta_init1+theta_unshift_init2+pi)*Tdot2_final*(x(N,6)+x(N,8)))...
                      +penalty*sum(abs(u(:,1)))+penalty*sum(abs(u(:,2))); 
                 end
-            else
+           elseif utilize_compliance == 0
+                    % rigid case
                     minimize -(L_1*cos(theta_init1)*Tdot1_final*z(N,2)+...
                      L_2*cos(theta_init1+theta_unshift_init2+pi)*Tdot1_final*z(N,2)...
                      +L_2*cos(theta_init1+theta_unshift_init2+pi)*Tdot2_final*z(N,4))...
                      +(1e-3)*sum(abs(u(:,1)))+(1e-3)*sum(abs(u(:,2)));
-            end  
-
+           end  
+           % Constraints
             subject to
 
             if utilize_compliance == 0 % rigid behavior
@@ -561,6 +560,7 @@ for r = 1: end_test
                         -L_2*sin(theta_init1+theta_unshift_init2+pi)*Tdot2_final*(z(N,4)))...
                         == 0
 
+                    % Discrete model 
                         for j = 1: N-1
         %                     z_double_dot(j,:)' == Linv_M_Linv(:,:,j)\F(:,j)...
         %                         -Linv_M_Linv(:,:,j)\F_b_components_no_compliance(:,:,j);
@@ -573,17 +573,17 @@ for r = 1: end_test
                         end 
                         
                         %Ballscrew Limit
-                        abs(z(:,2)) <= .3; 
-                        abs(z(:,4)) <= .3;
+                        abs(z(:,2)) <= .3; % m/s
+                        abs(z(:,4)) <= .3; % m/s
                         
                         % Additional u limitation
                          Km_M*u(:,:)' == F(:,:);
 
 
             else
-                % Utilize the compliance
+                % Utilize compliance
 
-                % Spring Deflection Constraint
+                % Spring Deflection (m) Constraint
                 -0.01*(1/scale)  <= x(:,1) <= 0.01*(1/scale) ; % spring deflection limit (meters) 
                 -0.01*(1/scale)  <= x(:,5) <= 0.01*(1/scale); % spring deflection limit (meters)
 
@@ -617,8 +617,8 @@ for r = 1: end_test
                     == 0
 
                 % Ballscrew Limit
-                abs(x(:,4)) <= .3; 
-                abs(x(:,8)) <= .3; 
+                abs(x(:,4)) <= .3; % m/s
+                abs(x(:,8)) <= .3; % m/s
 
 
 
@@ -628,10 +628,7 @@ for r = 1: end_test
                     wrench_nominal(:,n)'...
                     +(Constraint_Jacobian(:,:,n)*[0,1,0,1,0,0,0,0;0,0,0,0,0,1,0,1]*...
                     (B_lin(:,:,n)*u(n,:)')*(1/time_step))');       
-        %          c_constraint(n,1)>=0;
-        %          c_constraint(n,2)>=0;
-        %          c_constraint(n,3)>=0;
-        %          c_constraint(n,4)>=0;         
+      
 
                 end 
 
@@ -646,7 +643,7 @@ for r = 1: end_test
             end
 
                 % Current Constraint, applicable for both situations
-                -15.0 <= u(:,:) <= 15.0;
+                -15.0 <= u(:,:) <= 15.0; % A
 
             cvx_end
             % update baseline trajectory
@@ -656,8 +653,8 @@ for r = 1: end_test
                 z_baseline = z;
             end
             
-            % If we are evaluating zero-input behavior, cvx is not
-            % performed 
+        % If we are evaluating zero-input behavior, cvx is not
+        % performed 
         elseif input == 0
             for j = 1: N-1
                 x(j+1, :) = x(j,:)*A_lin(:,:,j)'+...
@@ -678,7 +675,7 @@ for r = 1: end_test
             plot(z(:,1),z(:,3),'DisplayName',var,'Linewidth',1); 
         end
         if input == 1
-            opt_val(i) = cvx_optval;
+            opt_val_check_convergence(i) = cvx_optval;
             if isequal(cvx_status, 'Solved') 
                 solve = 1; 
             else 
@@ -688,14 +685,14 @@ for r = 1: end_test
         
         % Stop iterations if convergence occurs within specified tolerance
         if input == 1
-            if i > 2
-                if abs(opt_val(i) - opt_val(i-1)) < .001 && solve == 1
+            if i > 1
+                if abs(opt_val_check_convergence(i) - opt_val_check_convergence(i-1)) < .001 && solve == 1
                     break
                 end
             end 
         end 
         
-        % Error analysis
+        % Error analysis, relative error considering 2-norm
         if analyze_convergence == 1
             error(i) = norm(x_compare_convergence-x)/norm(x_compare_convergence);
         end
@@ -716,12 +713,9 @@ for r = 1: end_test
         frequency_a_1(r) = max_eig_a1;
     end
     if input == 1 && length(penalty_array) == 1
-        optimal(r) = cvx_optval;   
-%      if length(spring_scale) > 1 && input == 1 && length(penalty_array) == 1
-%         optimal(r) = cvx_optval; 
-%     elseif length(spring_scale) == 1 && input == 1 && length(penalty_array) == 1
-%             optimal(r) = cvx_optval;           
+        optimal(r) = cvx_optval; % the cvx_optval includes any penalizations on u   
     elseif input == 1 && length(penalty_array) > 1
+        % upward y velocity 
         optimal(r) = (L_1*cos(theta_init1)*Tdot1_final*(x(N,2)+x(N,4))+...
              L_2*cos(theta_init1+theta_unshift_init2+pi)*Tdot1_final*(x(N,2)+x(N,4))...
              +L_2*cos(theta_init1+theta_unshift_init2+pi)*Tdot2_final*(x(N,6)+x(N,8)));
@@ -754,7 +748,9 @@ for r = 1: end_test
     % behavior
     if save_y_velocity_data == 1
         Tdot1_array = zeros(N,1);
-        Tdot2_array = zeros(N,1);   
+        Tdot2_array = zeros(N,1); 
+        % save files in order to compare behavior using
+        % yVelocityComparison.m
         if utilize_compliance == 1
             z_1_evaluate_y_velocity = x(:,1)+x(:,3);
             z_dot_1_evaluate_y_velocity = x(:,2)+x(:,4); 
@@ -915,17 +911,17 @@ if utilize_compliance == 1
     for j = 1:N-1
 
         % kinetic energy and potential energy
-         [T(j),U(j),diss(j),Torque1(j),Torque2(j)] = checks(x(j:j+1,:),m_L1,m_L2);
+         [T(j),U(j),diss(j),Torque1(j),Torque2(j)] = checks(x(j:j+1,:));
     end 
 
     % Total Mechanical Energy
     figure()
-    plot([1:N-1]'*time_step,real(T),'DisplayName','kinetic energy');
+    plot([0:N-2]'*time_step,real(T),'DisplayName','Kinetic Energy','LineWidth', 2);
     hold on
-    plot([1:N-1]'*time_step,real(U),'DisplayName','potential energy');
-    plot([1:N-1]'*time_step,real(T)+real(U)+real(diss),'DisplayName','total energy');
+    plot([0:N-2]'*time_step,real(U),'DisplayName','Potential Energy','LineWidth', 2);
+    plot([0:N-2]'*time_step,real(T)+real(U)+real(diss),'DisplayName','Total Energy','LineWidth', 2);
     legend('show')
-    xlabel('time (s)')
+    xlabel('Time (s)')
     ylabel('Energy (J)')
     hold off
 
@@ -948,79 +944,11 @@ if utilize_compliance == 1
     legend('show')
     hold off
 end
-%% Animation
-figure()
-clf()
-v = VideoWriter('new');
-% v.framerate=60;
-v.FrameRate = 1/time_step; 
-v.Quality=98;
-disp(v.VideoCompressionMethod)
-open(v)
-for i=1:N
-    % visualization in a plot
-    clf()
-    axs=plot([0,0],[0,0]);
-    if utilize_compliance == 1 
-    %delta = [1,0,0,0,0,0,0,0]*xcvx(i,:)';
-        % link 1
-        x1= [1,0,1,0,0,0,0,0]*xcvx(i,:)';
-        % link 2
-        x2= [0,0,0,0,1,0,1,0]*xcvx(i,:)';    
-    elseif utilize_compliance == 0
-        % link 1
-        x1= [1,0,0,0]*zcvx(i,:)';
-        % link 2
-        x2= [0,0,1,0]*zcvx(i,:)'; 
-    end
-    theta1=get_theta1(x1); 
-    theta2_unshift= get_theta_2(x2); 
-    theta2_shift = theta2_unshift+pi; 
 
+% Animate resulting behavior
 
-    l1 = get_l1(theta1);
-    l2 = get_l2(theta1,theta2_shift);
-    m1 = get_mass1(theta1);
-    m2 = get_mass2(theta1,theta2_shift);
-
-    plot([0, l1(1), l2(1)],[0,l1(2),l2(2)],'o-');
-
-
-    hold on
-    plot([-foot_length,0],[0,0])
-    hold on
-    plot([m1(1)],[m1(2)],'o','MarkerSize',20)
-    plot([m2(1)],[m2(2)],'o','MarkerSize',20)
-    
-    if utilize_compliance == 1 && input == 1
-    % plot reaction forces 
-%         if i < N
-%             reaction = c_constraint(i,:);
-% 
-%             point = [-foot_length;0];
-%             R1 = .005*(reaction(1,1)*[mu;1]+reaction(1,2)*[-mu;1]);
-%             plot([point(1),point(1)+R1(1)],[point(2),point(2)+R1(2)])
-%             R2 = .005*(reaction(1,3)*[mu;1]+reaction(1,4)*[-mu;1]);
-%             plotv(1*R2,'-')
-% 
-%         end     
-    end
-    
-    if utilize_compliance == 1
-        delta1 = [1,0,0,0,0,0,0,0]*xcvx(i,:)';
-        delta2 = [0,0,0,0,1,0,0,0]*xcvx(i,:)';
-        springscale = 50; 
-        points1 = get_A1(theta1,delta1*springscale);
-        points2 = get_A2(theta1,theta2_shift,delta1*springscale);
-        plot(points1(1,:), points1(2,:),'o','MarkerSize',10);
-        plot(points2(1,:), points2(2,:),'o','MarkerSize',10);
-    end 
-    axis('equal')
-
-    axis([-.5,.4,-.1,1.3])
-    drawnow
-%     F(i)=getframe;
-    writeVideo(v,getframe)
-    %pause(0.001)
+if utilize_compliance == 1
+  animate_results(utilize_compliance, xcvx, N, foot_length, input)
+elseif utilize_compliance == 0
+  animate_results(utilize_compliance, zcvx, N, foot_length, input)  
 end
-close(v)

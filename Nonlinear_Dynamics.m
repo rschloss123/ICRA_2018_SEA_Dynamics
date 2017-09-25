@@ -1,21 +1,10 @@
 % Compute the natural frequency and the associated period for the
 % continuous system dynamics
 
-% Notes
-% theta1 is an absolute angle
-% theta2 is shifted by pi in order to be with respect to link 1
-% The absolute angle of link 2 is theta1+theta2
-
 function [period_continuous, frequency_continuous] = Nonlinear_Dynamics(x, N,m_L1,m_L2)   
 
 %test = [0, 1110];
-%% System Parameters
- 
-% moment arm (Jacobian) 
-get_r1 = @(theta) (21*sin(theta - atan(1/2)))/(2500*(457/10000 - (21*cos(theta - atan(1/2)))/1250)^(1/2));
-get_r2 = @(theta) ((sin(pi/2 + asin(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))))*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2)*((sin(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))*cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))*(((9*sin(theta)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2))/(250000*(9/5000 - (9*cos(theta))/5000)^(3/2)) - (225*sin(theta)*((9*cos(theta))/5000 + 7/5000))/(32*(9/5000 - (9*cos(theta))/5000)^(1/2)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)))/(1 - ((390625*((9*cos(theta))/5000 + 7/5000)^2)/4 - 1)/((9*cos(theta))/8 - 9/8))^(1/2) - ((3*cos(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2)) - (27*sin(theta)^2)/(1000000*(9/5000 - (9*cos(theta))/5000)^(3/2)))/((9*sin(theta)^2)/(18*cos(theta) - 18) + 1)^(1/2)))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2)*(1 - cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))^2)^(1/2)) - (sin(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))*sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))^2*(((9*sin(theta)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2))/(250000*(9/5000 - (9*cos(theta))/5000)^(3/2)) - (225*sin(theta)*((9*cos(theta))/5000 + 7/5000))/(32*(9/5000 - (9*cos(theta))/5000)^(1/2)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)))/(1 - ((390625*((9*cos(theta))/5000 + 7/5000)^2)/4 - 1)/((9*cos(theta))/8 - 9/8))^(1/2) - ((3*cos(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2)) - (27*sin(theta)^2)/(1000000*(9/5000 - (9*cos(theta))/5000)^(3/2)))/((9*sin(theta)^2)/(18*cos(theta) - 18) + 1)^(1/2)))/(2000*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(3/2)*(1 - cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))^2)^(1/2))))/(50*(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))^2/(8*cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2)))))) - 17) + 1)^(1/2)) + (sin(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))*sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))*(((9*sin(theta)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2))/(250000*(9/5000 - (9*cos(theta))/5000)^(3/2)) - (225*sin(theta)*((9*cos(theta))/5000 + 7/5000))/(32*(9/5000 - (9*cos(theta))/5000)^(1/2)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)))/(1 - ((390625*((9*cos(theta))/5000 + 7/5000)^2)/4 - 1)/((9*cos(theta))/8 - 9/8))^(1/2) - ((3*cos(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2)) - (27*sin(theta)^2)/(1000000*(9/5000 - (9*cos(theta))/5000)^(3/2)))/((9*sin(theta)^2)/(18*cos(theta) - 18) + 1)^(1/2)))/(50*(1 - cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))^2)^(1/2)) - (cos(pi/2 + asin(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))))*sin(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))*sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))*(((9*sin(theta)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2))/(250000*(9/5000 - (9*cos(theta))/5000)^(3/2)) - (225*sin(theta)*((9*cos(theta))/5000 + 7/5000))/(32*(9/5000 - (9*cos(theta))/5000)^(1/2)*(1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)))/(1 - ((390625*((9*cos(theta))/5000 + 7/5000)^2)/4 - 1)/((9*cos(theta))/8 - 9/8))^(1/2) - ((3*cos(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2)) - (27*sin(theta)^2)/(1000000*(9/5000 - (9*cos(theta))/5000)^(3/2)))/((9*sin(theta)^2)/(18*cos(theta) - 18) + 1)^(1/2)))/(5000*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2)*(1 - cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))^2)^(1/2)))/(2*(213/5000 - (cos(pi/2 + asin(sin(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/(20*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))))*(17/400 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2))/50 - cos(pi/6 - acos(cos(asin((3*sin(theta))/(100*(9/5000 - (9*cos(theta))/5000)^(1/2))) + asin((1 - (390625*((9*cos(theta))/5000 + 7/5000)^2)/4)^(1/2)/(25*(9/5000 - (9*cos(theta))/5000)^(1/2))))))/50)^(1/2));
-
-%% Simulation Parameters
+% Simulation Parameters
 
 
 r1 = zeros(N,1);
@@ -66,8 +55,8 @@ for j = 1:N
         theta2_unshift(j) = get_theta_2(x2_est);
         theta2_shift(j)= theta2_unshift(j)+pi;
 
-        r1(j) = get_r1(theta1(j));
-        r2(j) = get_r2(theta2_unshift(j));        
+        [r1(j), r2(j)] = getr(theta1(j),theta2_unshift(j));
+       
         theta_dot1(j) = dx1_est/r1(j);
         theta_dot2(j) = dx2_est/r2(j);
 
@@ -78,7 +67,7 @@ for j = 1:N
             theta1(j), theta2_unshift(j), r1(j), r2(j), theta_dot1(j), theta_dot2(j),...
             A_1, B1_1, B1_2, B1_3, B1_4, s1, s2,m_L1,m_L2);
 
-        [A_prime(:,:,i),B_prime(:,:,i),bias_prime(:,:,i)] = linearize(A_1,B1_12,B1_34,F_x_components,...
+        [A_prime(:,:,i),B_prime(:,:,i),bias_prime(:,:,i)] = linearize_matrices(A_1,B1_12,B1_34,F_x_components,...
         F_u_components,F_b_components);
  
         
@@ -104,6 +93,7 @@ end
 % period_0 =1/((max_eig(1))/(2*pi))
 % period_mass =1/((max_eig(2))/(2*pi))
 
+% Maximum eigenvalue and corresponding period
 period_continuous = 1/((max_eig)/(2*pi));
 frequency_continuous = max_eig;
 

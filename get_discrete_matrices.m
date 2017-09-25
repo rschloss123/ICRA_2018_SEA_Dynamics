@@ -5,6 +5,7 @@ global time_step
 % do approximate integration to get a discrete time model
 num_iters = 100;
 A = expm(A_1*time_step);
+
 if actuator_dynamics_considered == 1 % compliant system
     B = [0,0,0,0;0,0,0,0;0,0,0,0;0,0,0,0;0,0,0,0;0,0,0,0;0,0,0,0;0,0,0,0];
 else % rigid system

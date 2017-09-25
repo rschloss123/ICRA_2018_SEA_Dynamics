@@ -1,5 +1,5 @@
 % We are considering a two link system which contains two actuators 
-% states: chi = [delta1; delta_dot1; y1; y_dot1; delta2; delta_dot2; y2; y_dot2]
+% states: [delta1; delta_dot1; y1; y_dot1; delta2; delta_dot2; y2; y_dot2]
 % input: u = [motor1 current in amps; external force1; motor2 current in amps; external force2]
 % where delta is spring deflection, and y is ball screw deflection
 % total actuator deflection, x, satisfies x = y + delta for each individual
